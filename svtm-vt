@@ -1,0 +1,15 @@
+#!/bin/sh
+dir="${1?pass directory as first argument}"
+shift
+mkdir -p "$dir"
+
+cleanup() {
+	rm -rf "$dir"
+}
+
+trap cleanup INT TERM
+
+mkfifo "$dir/cmd" "$dir/dump"
+svt -c "$dir/cmd" -o "$dir/dump" "$@" ||:
+
+cleanup

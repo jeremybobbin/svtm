@@ -1,0 +1,86 @@
+#!/bin/sh
+
+# name of the new session
+SVTM_SESSION="${1:-svtm}"
+SVTM_DIR="$HOME/.local/run/svtm/$SVTM_SESSION"
+export SVTM_SESSION SVTM_DIR
+
+cleanup() {
+	abduco | awk '$(NF) ~ '"/^$SVTM_SESSION-[0-9]+$/"' { printf "kill %d\n", $(NF-1) }' | sh
+	if [ -d "$SVTM_DIR" ]; then
+		rm -r "$SVTM_DIR"
+	fi
+}
+
+die() {
+	echo "$0: $*" 1>&2
+	exit 1
+}
+
+# this will be true after the first pass(see last few lines)
+if [ "$ABDUCO_SESSION" = "$SVTM_SESSION" ]; then
+	while
+		# idgaf
+		until
+			read f < "$SVTM_DIR/focus" && [ -n "$f" ] && [ -d "$SVTM_DIR/$f" ]
+		do 
+			# svtm-ctl {prev,next} returns false if there's
+			# only one session left
+			if svtm-ctl prev; then
+				:
+			else
+				echo "$0: no more sessions"
+				exit 0
+			fi
+		done
+		# PID of abduco client is different from actual backend process spawned
+		# we use `echo $$ > ... && exec ...` to keep track of PID of client
+		sh -c 'echo $$ > "$SVTM_DIR/pid";
+			exec abduco -a "$SVTM_SESSION-$0"' "$f" || [ $? -eq 143 ];
+		
+	do
+		rm -f "$SVTM_DIR/pid"
+	done
+	die "could not attach to session '$SVTM_SESSION-$f'"
+fi 2>/dev/null 
+
+# assert that potential children of the session don't exist
+if
+	abduco | awk 'NR!=1 && $(NF) ~ /^'"$SVTM_SESSION"'(-[0-9]+)?$/ { m=1 }
+		END { exit(m ? 0 : 1) }'
+then
+	die "session $SVTM_SESSION already exists" 
+fi
+
+trap 'cleanup' INT
+mkdir -p "$SVTM_DIR"
+
+seq 1 | while read i; do
+	abduco -fn "$SVTM_SESSION-$i" svtm-vt "$SVTM_DIR/$i"
+done
+
+echo 1 >  "$SVTM_DIR/focus"
+
+(cat > "$SVTM_DIR/config") << "EOF"
+^Gj
+	svtm-ctl next\n
+
+^Gk
+	svtm-ctl prev\n
+
+^Gc
+	svtm-ctl create\n
+
+^Ge
+	svtm-ctl edit\n
+
+^Gu
+	svtm-ctl scroll 40\n
+
+^Gd
+	svtm-ctl scroll -40\n
+EOF
+
+# recursive call to svtm($0)
+abduco -A "$SVTM_SESSION" sh -c "sthkd '$SVTM_DIR/config' -p '$0' | sh" 2>/dev/null
+cleanup

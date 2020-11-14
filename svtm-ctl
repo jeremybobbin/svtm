@@ -1,0 +1,62 @@
+#!/bin/sh
+
+die() {
+	echo "$0: $*" 1>&2
+	exit 1
+}
+
+numbers() {
+	grep '^[0-9]\+$' "$@"
+}
+
+next() {
+	awk '!first && NR==1 { first=$1 }
+		$1 > '${focus:-1}' { new=$1; exit }
+		END { print new ? new : first }'
+}
+
+prev() {
+	awk '$1 < '${focus:-1}' && $1 > new { new=$1 }
+		$1 > tail { tail = $1 }
+		END { print new ? new : tail }'
+}
+
+create() {
+	awk '$1 != NR { n=NR; exit } END { print n ? n : NR+1 }' | if read i; then
+		abduco -fn "$SVTM_SESSION-$i" svtm-vt "$SVTM_DIR/$i" "$@"
+		echo "$i"
+	fi
+}
+
+edit() {
+	create "'$EDITOR' - < '$SVTM_DIR/$focus/dump'"
+	echo dump > "$SVTM_DIR/$focus/cmd"
+}
+
+if [ -z "$SVTM_SESSION" ]; then
+	die 'no SVTM session'
+fi
+
+if [ $# -lt 1 ]; then
+	die 'give arg'
+fi
+
+read focus < "$SVTM_DIR/focus"
+
+case "$1" in
+	edit|create|prev|next) ls "$SVTM_DIR/" | numbers | "$@" > "$SVTM_DIR/focus"
+		if read new < "$SVTM_DIR/focus" && [ -n "$new" ] && [ "$focus" != "$new" ]; then
+			:
+		else
+			die "cannot change focus from '$focus' to '$new'"
+		fi;;
+	scroll) echo "$@" > "$SVTM_DIR/$focus/cmd";;
+	*) die "unknown command";;
+
+esac 
+
+if [ -f "$SVTM_DIR/pid" ]; then
+	numbers "$SVTM_DIR/pid" | while read pid; do
+		kill "$pid"
+	done
+fi
