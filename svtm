@@ -17,8 +17,39 @@ die() {
 	exit 1
 }
 
-# this will be true after the first pass(see last few lines)
-if [ "$ABDUCO_SESSION" = "$SVTM_SESSION" ]; then
+# lowest available number from stdin starting from $1
+# similar behavior to open(3) - opens lowest file descriptor
+lowest() {
+	sort -n | awk -v "i=$1" '!/^[0-9]+$/ { next } \
+		i != $1 { exit } END { print i }'
+}
+
+if [ -d "$SVTM_DIR/master" ]; then
+	MASTER=$(ls "$SVTM_DIR/master" | lowest 1)
+else
+	MASTER=1
+fi
+
+MASTER_DIR="$SVTM_DIR/master/${MASTER:=1}"
+MASTER_SESSION="$SVTM_SESSION-master-$MASTER"
+mkdir -p "$MASTER_DIR"
+
+# three conditions to handle:
+# 	- creating the first master
+# 		- create the dirs
+# 		- create children
+# 		- recursively call svtm
+#	- creating the nth master
+# 		- create the lowest available master number
+#	- svtm was recursivly called
+# 		- attach to child
+#
+
+# this is true when svtm is recursively called(see last few lines)
+if echo "$ABDUCO_SESSION" | grep -q "$SVTM_SESSION-master-[0-9]\+"; then
+	# we are a master
+	# child(ren) has/have been created
+	# we need to attach to the child
 	while
 		# idgaf
 		until
@@ -82,5 +113,5 @@ echo 1 >  "$SVTM_DIR/focus"
 EOF
 
 # recursive call to svtm($0)
-abduco -A "$SVTM_SESSION" sh -c "sthkd '$SVTM_DIR/config' -p '$0' | sh" 2>/dev/null
+abduco -A "$MASTER_SESSION" sh -c "sthkd '$SVTM_DIR/config' -p '$0' | sh"
 cleanup
