@@ -41,11 +41,11 @@ if [ $# -lt 1 ]; then
 	die 'give arg'
 fi
 
-read focus < "$SVTM_DIR/focus"
+read focus < "$SVTM_MASTER_DIR/focus"
 
 case "$1" in
-	edit|create|prev|next) ls "$SVTM_DIR/" | numbers | "$@" > "$SVTM_DIR/focus"
-		if read new < "$SVTM_DIR/focus" && [ -n "$new" ] && [ "$focus" != "$new" ]; then
+	edit|create|prev|next) ls "$SVTM_DIR/" | numbers | "$@" > "$SVTM_MASTER_DIR/focus"
+		if read new < "$SVTM_MASTER_DIR/focus" && [ -n "$new" ] && [ "$focus" != "$new" ]; then
 			:
 		else
 			die "cannot change focus from '$focus' to '$new'"
@@ -55,8 +55,8 @@ case "$1" in
 
 esac 
 
-if [ -f "$SVTM_DIR/pid" ]; then
-	numbers "$SVTM_DIR/pid" | while read pid; do
+if [ -f "$SVTM_MASTER_DIR/pid" ]; then
+	numbers "$SVTM_MASTER_DIR/pid" | while read pid; do
 		kill "$pid"
 	done
 fi
