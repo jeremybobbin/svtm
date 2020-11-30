@@ -1,7 +1,6 @@
 #!/bin/sh
 
 cleanup() {
-	#abduco | awk '$(NF) ~ '"/^$SVTM_SESSION-[0-9]+$/"' { printf "kill %d\n", $(NF-1) }' | sh
 	if [ -d "$SVTM_MASTER_DIR" ]; then
 		rm -r "$SVTM_MASTER_DIR"
 	fi
@@ -18,63 +17,90 @@ lowest() {
 	sort -n | awk 'NR != $1 { i = NR; exit } END { print i ? i : NR+1 }'
 }
 
-# name of the new session
-SVTM_SESSION="${1:-svtm}"
-SVTM_DIR="$HOME/.local/run/svtm/$SVTM_SESSION"
-export SVTM_SESSION SVTM_DIR
+# we use `echo $$ > ... && exec ...` to keep track of PID
+pidfile() {
+	file="$1"; shift
+	sh -c "echo \$\$ > '$file'; exec $*"
+}
 
-# create the master
-if [ -z "$SVTM_MASTER" ] || [ -z "$SVTM_MASTER_DIR" ]; then
-	if [ -d "$SVTM_DIR/master" ]; then
-		MASTER=$(ls "$SVTM_DIR/master" | lowest)
-	else
-		MASTER=1
-	fi
-	SVTM_MASTER="$SVTM_SESSION-master-$MASTER"
-	SVTM_MASTER_DIR="$SVTM_DIR/master/$MASTER"
-	export SVTM_MASTER_DIR SVTM_MASTER
-
-	mkdir -p "$SVTM_MASTER_DIR"
-	echo 1 >  "$SVTM_MASTER_DIR/focus"
-fi
-
-
-# three conditions to handle:
+# conditions to handle:
 # 	- creating the master
 # 		- create slaves if they don't exist
 # 		- recursively call svtm
 #	- svtm was recursivly called
 # 		- attach to slave
 
+# assert that session is not recursive
+if [ -n "$SVTM_SESSION" ] && \
+	echo "$ABDUCO_SESSION" | grep -Eq "^$SVTM_SESSION-[0-9]+$"; then
+	die "abduco session '$ABDUCO_SESSION' already open"
+fi
+
+trap 'cleanup' INT
+
 # this is true when svtm is recursively called(see last few lines)
-if echo "$ABDUCO_SESSION" | grep -q "$SVTM_SESSION-master-[0-9]\+"; then
+if [ -n "$SVTM_MASTER_DIR" ]; then
+	# necessary for ^Gq
+	echo $$ > "$SVTM_MASTER_DIR/pid"
+
 	# attach to the slave(s)
 	while
 		# idgaf
 		until
-			read f < "$SVTM_MASTER_DIR/focus" && [ -n "$f" ] && [ -d "$SVTM_DIR/$f" ]
+			[ -f "$SVTM_MASTER_DIR/focus" ] && read f < "$SVTM_MASTER_DIR/focus" && \
+				[ -n "$f" ] && [ -d "$SVTM_DIR/$f" ]
 		do 
 			# svtm-ctl {prev,next} returns false if there's
 			# only one session left
-			if svtm-ctl prev; then
+			if svtm-ctl prev 2>/dev/null; then
 				:
 			else
-				echo "$0: no more sessions"
+				cleanup
 				exit 0
 			fi
 		done
-		# PID of abduco client is different from actual backend process spawned
-		# we use `echo $$ > ... && exec ...` to keep track of PID of client
-		sh -c 'echo $$ > "$SVTM_MASTER_DIR/pid";
-			exec abduco -a "$SVTM_SESSION-$0"' "$f" || [ $? -eq 143 ];
-		
+		# if abduco can't attach, then the 'svtm-ctl' process that died did not remove its
+		# directory
+		# we need to remove the directory associated with the dead process
+		if
+			# PID of abduco client is different from actual backend process spawned
+			pidfile "$SVTM_MASTER_DIR/view" abduco -a "$SVTM_SESSION-$f" 2>/dev/null
+			exit=$?; [ "$exit" -ne 0 ] && [ "$exit" -ne 143 ]
+		then
+			rm -rf "$SVTM_DIR/$f"
+		fi
 	do
-		rm -f "$SVTM_MASTER_DIR/pid"
+		rm -f "$SVTM_MASTER_DIR/view"
 	done
 	die "could not attach to session '$SVTM_SESSION-$f'"
-fi 2>/dev/null 
+	# unreachable
+fi
 
-trap 'cleanup' INT TERM
+SVTM=$$
+SVTM_SESSION="${1:-svtm}" # name of new session
+SVTM_DIR="$HOME/.local/run/svtm/$SVTM_SESSION"
+if [ -d "$SVTM_DIR/master" ]; then
+	MASTER=$(ls "$SVTM_DIR/master" | lowest)
+else
+	MASTER=1
+fi
+SVTM_MASTER_DIR="$SVTM_DIR/master/$MASTER"
+export SVTM SVTM_MASTER_DIR SVTM_SESSION SVTM_DIR
+
+# initialize the master
+mkdir -p "$SVTM_MASTER_DIR"
+echo 1 >  "$SVTM_MASTER_DIR/focus"
+
+# check whether slaves of the session exist
+if
+	abduco | awk 'NR!=1 && $(NF) ~ /^'"$SVTM_SESSION"'(-[0-9]+)?$/ { m=1 }
+		END { exit(m ? 0 : 1) }'
+then
+	: # there are slaves
+else
+	# no slaves - create
+	abduco -fn "$SVTM_SESSION-1" svtm-vt "$SVTM_DIR/1"
+fi
 
 (cat > "$SVTM_MASTER_DIR/config") << "EOF"
 ^Gj
@@ -94,21 +120,12 @@ trap 'cleanup' INT TERM
 
 ^Gd
 	svtm-ctl scroll -40\n
+
+^Gq
+	svtm-ctl quit\n
+
 EOF
 
-# check whether slaves of the session exist
-if
-	abduco | awk 'NR!=1 && $(NF) ~ /^'"$SVTM_SESSION"'(-[0-9]+)?$/ { m=1 }
-		END { exit(m ? 0 : 1) }'
-then
-	: # there are slaves
-else
-	# no slaves - create
-	seq 1 | while read i; do
-		abduco -fn "$SVTM_SESSION-$i" svtm-vt "$SVTM_DIR/$i"
-	done
-fi
-
 # recursive call to svtm($0)
-abduco -A "$SVTM_MASTER" sh -c "sthkd '$SVTM_MASTER_DIR/config' -p '$0' | sh"
+sthkd "$SVTM_MASTER_DIR/config" -p "$0" | sh 2>/dev/null
 cleanup

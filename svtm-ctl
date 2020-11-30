@@ -45,18 +45,23 @@ read focus < "$SVTM_MASTER_DIR/focus"
 
 case "$1" in
 	edit|create|prev|next) ls "$SVTM_DIR/" | numbers | "$@" > "$SVTM_MASTER_DIR/focus"
-		if read new < "$SVTM_MASTER_DIR/focus" && [ -n "$new" ] && [ "$focus" != "$new" ]; then
+		if
+			[ -f "$SVTM_MASTER_DIR/focus" ] && \
+			read new < "$SVTM_MASTER_DIR/focus" && \
+			[ -n "$new" ] && [ "$focus" != "$new" ]
+		then
 			:
 		else
 			die "cannot change focus from '$focus' to '$new'"
 		fi;;
 	scroll) echo "$@" > "$SVTM_DIR/$focus/cmd";;
+	quit) xargs -r kill -s INT < "$SVTM_MASTER_DIR/pid";;
 	*) die "unknown command";;
 
 esac 
 
-if [ -f "$SVTM_MASTER_DIR/pid" ]; then
-	numbers "$SVTM_MASTER_DIR/pid" | while read pid; do
+if [ -f "$SVTM_MASTER_DIR/view" ]; then
+	numbers "$SVTM_MASTER_DIR/view" | while read pid; do
 		kill "$pid"
 	done
 fi

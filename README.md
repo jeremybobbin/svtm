@@ -45,9 +45,6 @@ git clone https://github.com/jeremybobbin/libst && \
                   |                  
                 svtm                 
                   |                  
-               (master)              
-                abduco               
-                  |                  
                 sthkd                
       <- ^Gk -    |    - ^Gj ->      
 +-----------------|-----------------+
