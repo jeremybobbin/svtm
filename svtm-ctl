@@ -29,7 +29,7 @@ create() {
 }
 
 edit() {
-	create "'$EDITOR' - < '$SVTM_DIR/$focus/dump'"
+	create sh -c "exec '$EDITOR' - < '$SVTM_DIR/$focus/dump'"
 	echo dump > "$SVTM_DIR/$focus/cmd"
 }
 
