@@ -23,6 +23,9 @@ prev() {
 
 create() {
 	awk '$1 != NR { n=NR; exit } END { print n ? n : NR+1 }' | if read i; then
+		if [ -f "$SVTM_DIR/$focus/pid" ] && read pid < "$SVTM_DIR/$focus/pid"; then
+			cd "$(realpath /proc/$pid/cwd)"
+		fi
 		abduco -fn "$SVTM_SESSION-$i" svtm-vt "$SVTM_DIR/$i" "$@"
 		echo "$i"
 	fi

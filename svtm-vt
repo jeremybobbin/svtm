@@ -10,6 +10,6 @@ cleanup() {
 trap cleanup INT TERM
 
 mkfifo "$dir/cmd" "$dir/dump"
-svt -c "$dir/cmd" -o "$dir/dump" "$@" ||:
+svt -c "$dir/cmd" -o "$dir/dump" pidfile "$dir/pid" "$@" ||:
 
 cleanup
