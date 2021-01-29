@@ -65,7 +65,7 @@ if [ -n "$SVTM_MASTER_DIR" ]; then
 		if
 			# PID of abduco client is different from actual backend process spawned
 			pidfile "$SVTM_MASTER_DIR/view" abduco -a "$SVTM_SESSION-$f" 2>/dev/null
-			exit=$?; [ "$exit" -ne 0 ] && [ "$exit" -ne 143 ]
+			exit=$?; [ "$exit" -ne 143 ]
 		then
 			rm -rf "$SVTM_DIR/$f"
 		fi
@@ -124,6 +124,8 @@ fi
 ^Gq
 	svtm-ctl quit\n
 
+^Gx
+	svtm-ctl close\n
 EOF
 
 # recursive call to svtm($0)

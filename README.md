@@ -12,6 +12,7 @@ The simple virtual terminal manager
 - ^Ge: dump pty history into editor
 - ^Gu: scroll up
 - ^Gd: scroll down
+- ^Gx: close
 
 ### Dependencies:
 

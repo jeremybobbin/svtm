@@ -31,6 +31,14 @@ create() {
 	fi
 }
 
+# kill the currently focused process
+close() {
+	prev
+	if read pid < "$SVTM_DIR/$focus/pid"; then
+		kill "$pid"
+	fi
+}
+
 edit() {
 	create sh -c "exec '$EDITOR' - < '$SVTM_DIR/$focus/dump'"
 	echo dump > "$SVTM_DIR/$focus/cmd"
@@ -47,7 +55,8 @@ fi
 read focus < "$SVTM_MASTER_DIR/focus"
 
 case "$1" in
-	edit|create|prev|next) ls "$SVTM_DIR/" | numbers | "$@" > "$SVTM_MASTER_DIR/focus"
+	# these functions read clients from stdin, and spit out the new client to focus on
+	edit|close|create|prev|next) ls "$SVTM_DIR/" | numbers | "$@" > "$SVTM_MASTER_DIR/focus"
 		if
 			[ -f "$SVTM_MASTER_DIR/focus" ] && \
 			read new < "$SVTM_MASTER_DIR/focus" && \
