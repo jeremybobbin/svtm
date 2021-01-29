@@ -36,6 +36,10 @@ close() {
 	prev
 	if read pid < "$SVTM_DIR/$focus/pid"; then
 		kill "$pid"
+		# abduco doesn't finish session unless it sends content
+		# to abduco server
+		abduco -a "$SVTM_SESSION-$focus" < /dev/tty
+		# TODO: https://github.com/martanne/abduco/issues/44
 	fi
 }
 

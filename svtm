@@ -93,6 +93,7 @@ echo 1 >  "$SVTM_MASTER_DIR/focus"
 
 # check whether slaves of the session exist
 if
+	# TODO: handle case where abduco session exists but slave dir doesn't
 	abduco | awk 'NR!=1 && $(NF) ~ /^'"$SVTM_SESSION"'(-[0-9]+)?$/ { m=1 }
 		END { exit(m ? 0 : 1) }'
 then
