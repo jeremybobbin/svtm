@@ -1,5 +1,5 @@
 BINS=svtm svtm-ctl svtm-vt 
-PREFIX=$(HOME)/.local
+PREFIX=/usr/local
 
 install:
 	cp -a $(BINS) $(PREFIX)/bin
