@@ -34,7 +34,7 @@ git clone https://github.com/jeremybobbin/libst && \
 	git clone https://github.com/jeremybobbin/sthkd && \
 	cd sthkd && make && sudo make install && cd ../ && \
 	git clone https://github.com/martanne/abduco && \
-	cd abduco && ./configure && make && sudo make install && \
+	cd abduco && ./configure && make && sudo make install && cd ../ && \
 	git clone https://github.com/jeremybobbin/svtm && \
 	cd svtm && sudo make install
 ```
