@@ -64,7 +64,7 @@ if [ -n "$SVTM_MASTER_DIR" ]; then
 		# we need to remove the directory associated with the dead process
 		if
 			# PID of abduco client is different from actual backend process spawned
-			pidfile "$SVTM_MASTER_DIR/view" abduco -a "$SVTM_SESSION-$f" 2>/dev/null
+			pidfile "$SVTM_MASTER_DIR/view" abduco -a "$SVTM_SESSION-$f"
 			exit=$?; [ "$exit" -ne 143 ]
 		then
 			rm -rf "$SVTM_DIR/$f"
