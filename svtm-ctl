@@ -17,12 +17,14 @@ lowest() {
 
 
 next() {
+	# lowest number after focus OR very first
 	awk '!first && NR==1 { first=$1 }
-		$1 > '${focus:-1}' { new=$1; exit }
+		$1 > '${focus:-1}' && ($1 < new || !new) { new=$1 }
 		END { print new ? new : first }'
 }
 
 prev() {
+	# highest number below focus OR very last
 	awk '$1 < '${focus:-1}' && $1 > new { new=$1 }
 		$1 > tail { tail = $1 }
 		END { print new ? new : tail }'
